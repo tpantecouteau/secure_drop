@@ -1,0 +1,68 @@
+# ============================================
+# SECURE DROP - .gitignore
+# ============================================
+
+# === TERRAFORM (CRITICAL - CONTAINS AWS SECRETS) ===
+infra/.terraform/
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# === ENVIRONMENT FILES ===
+.env
+.env.local
+.env.*.local
+*.env
+
+# === BUILD ARTIFACTS & ZIPS ===
+build/
+dist/
+lambda.zip
+cleanup_function.zip
+*.zip
+
+# === PYTHON ===
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# === LOCAL STORAGE (TEST FILES) ===
+secure_drop_api/local_storage/
+local_storage/
+*.enc
+test_resultat_clair.*
+
+# === NODE.JS (Frontend) ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === IDE & OS ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# === LOGS ===
+*.log
+logs/
+
+# === COVERAGE & TESTING ===
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.nyc_output/

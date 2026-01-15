@@ -45,12 +45,10 @@ function App() {
     { value: 720, label: '30 jours' },
   ]
 
-  // Initialize Turnstile widget when file is selected
   useEffect(() => {
     if (!selectedFile || !TURNSTILE_SITE_KEY || !turnstileRef.current) return
-    if (turnstileWidgetId.current) return // Already rendered
+    if (turnstileWidgetId.current) return
 
-    // Small delay to ensure DOM is ready
     const timer = setTimeout(() => {
       if (window.turnstile && turnstileRef.current) {
         turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
@@ -151,7 +149,7 @@ function App() {
         showToast('error', 'Verification required', 'Please complete the security check')
         return
       }
-
+      console.log('turnstileToken', turnstileToken)
       setUploadPhase('encrypting')
       const { encryptedFile, nonce, key } = await encrpyptFile(selectedFile)
 

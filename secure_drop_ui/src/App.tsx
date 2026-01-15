@@ -11,6 +11,7 @@ interface Toast {
 }
 
 const API_URL = import.meta.env.VITE_API_URL;
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -101,7 +102,10 @@ function App() {
       formData.append('filename', selectedFile.name)
       formData.append('expires_in_hours', expiresIn.toString())
       formData.append('destroy_on_download', destroyOnDownload.toString())
-
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        showToast('error', 'The file is too large', 'The file is too large (max 5Mo)');
+        return;
+      }
       const response = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         body: formData,
@@ -112,7 +116,7 @@ function App() {
         const url = `${window.location.origin}/download/${result.file_id}#${key}`
         showToast(
           'success',
-          'Fichier envoyé avec succès !',
+          'File uploaded successfully!',
           `ID: ${result.file_id}`,
           url,
 

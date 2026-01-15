@@ -163,6 +163,22 @@ resource "aws_lambda_event_source_mapping" "cleanup_trigger" {
 # 4. Permission pour la Lambda de lire le flux (à ajouter à ton iam_role_policy)
 # Ajoute "dynamodb:DescribeStream", "dynamodb:GetRecords", "dynamodb:GetShardIterator", "dynamodb:ListStreams"
 
+resource "aws_dynamodb_table" "rate_limit_table" {
+  name         = "SecureDropRateLimit"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "ip_address"
+
+  attribute {
+    name = "ip_address"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
+  }
+}
+
 output "api_endpoint" {
   value = aws_lambda_function_url.api_url.function_url
 }

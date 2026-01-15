@@ -62,8 +62,35 @@ async def log_requests(request: Request, call_next):
         logger.error(f"❌ {request.method} {request.url.path} | ERROR | {process_time:.2f}ms | {str(e)}")
         raise
 
+RATELIMIT_TABLE = dynamodb.Table("SecureDropRateLimit")
+LIMIT_PER_HOUR = 10
+
+async def check_rate_limit(ip_address: str):
+    now = int(time.time())
+    
+    res = RATELIMIT_TABLE.get_item(Key={"ip_address": ip_address})
+    item = res.get('Item')
+
+    if item:
+        if item['count'] >= LIMIT_PER_HOUR:
+            raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
+        
+        RATELIMIT_TABLE.update_item(
+            Key={"ip_address": ip_address},
+            UpdateExpression="ADD #c :val",
+            ExpressionAttributeNames={"#c": "count"},
+            ExpressionAttributeValues={":val": 1}
+        )
+    else:
+        RATELIMIT_TABLE.put_item(Item={
+            "ip_address": ip_address,
+            "count": 1,
+            "expires_at": now + 3600
+        })
+
 @app.post('/upload')
 async def upload_file(
+    request: Request,
     background_tasks: BackgroundTasks, 
     file: UploadFile = File(...), 
     nonce: str = Form(...),
@@ -72,10 +99,14 @@ async def upload_file(
     destroy_on_download: str = Form("false")
 ) -> dict:
     try:
+        client_ip = request.client.host 
+        await check_rate_limit(client_ip)
+
         file_id = str(uuid.uuid4())
         file_content = await file.read()
         file_size = len(file_content)
-        
+        if file_size > 5 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="File too large")
         # Calculate expiration timestamp (Unix epoch)
         expires_at = int(time.time()) + (expires_in_hours * 3600)
         destroy_flag = destroy_on_download == "true"
@@ -179,5 +210,7 @@ async def health_check():
 async def root():
     logger.info("🏠 ROOT accessed")
     return {"message": "SecureDrop API is online", "docs": "/docs"}
+
+
 
 handler = Mangum(app)

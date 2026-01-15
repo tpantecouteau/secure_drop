@@ -5,6 +5,10 @@ import json
 s3 = boto3.client('s3')
 BUCKET_NAME = os.environ.get('BUCKET_NAME')
 
+# Validate configuration at startup
+if not BUCKET_NAME:
+    raise RuntimeError("BUCKET_NAME environment variable is required")
+
 def handler(event, context):
     print(f"DEBUG: Reçu un événement avec {len(event['Records'])} records")
     

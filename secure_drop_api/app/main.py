@@ -8,30 +8,57 @@ import uuid
 import time
 import os
 import re
+import base64
+import json
 import logging
 import sys
 
-# --- LOGGING CONFIGURATION ---
+# --- STRUCTURED JSON LOGGING FOR CLOUDWATCH ---
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "service": "securedrop",
+            "message": record.getMessage(),
+        }
+        # Add extra fields if present
+        if hasattr(record, 'extra'):
+            log_record.update(record.extra)
+        return json.dumps(log_record)
+
 root_logger = logging.getLogger()
 if root_logger.handlers:
     for handler in root_logger.handlers:
         root_logger.removeHandler(handler)
 
-# On définit un handler qui écrit sur la sortie standard
 handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s'))
+handler.setFormatter(JsonFormatter())
 
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[handler]
-)
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 
 logger = logging.getLogger("securedrop")
 logger.setLevel(logging.INFO)
-# On s'assure que les logs remontent au root logger
 logger.propagate = True
 
-app = FastAPI(title="SecureDrop API")
+# Helper function for structured logging with extra fields
+def log_event(level: str, message: str, **kwargs):
+    extra = {"extra": kwargs} if kwargs else {}
+    if level == "info":
+        logger.info(message, extra=extra)
+    elif level == "error":
+        logger.error(message, extra=extra)
+    elif level == "warning":
+        logger.warning(message, extra=extra)
+
+# Disable docs in production
+IS_PRODUCTION = os.environ.get("ENV", "development") == "production"
+
+app = FastAPI(
+    title="SecureDrop API",
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc"
+)
 
 # --- CORS MIDDLEWARE (handles all responses including errors) ---
 app.add_middleware(
@@ -58,22 +85,34 @@ table = dynamodb.Table(TABLE_NAME)
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
-    
-    # Log incoming request
-    logger.info(f"➡️  {request.method} {request.url.path}")
+    request_id = str(uuid.uuid4())[:8]  # Short request ID for tracing
     
     try:
         response = await call_next(request)
-        process_time = (time.time() - start_time) * 1000
+        latency_ms = round((time.time() - start_time) * 1000, 2)
         
-        # Log response
-        status_emoji = "✅" if response.status_code < 400 else "❌"
-        logger.info(f"{status_emoji} {request.method} {request.url.path} | {response.status_code} | {process_time:.2f}ms")
+        log_event(
+            "info" if response.status_code < 400 else "error",
+            "Request completed",
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            latency_ms=latency_ms
+        )
         
         return response
     except Exception as e:
-        process_time = (time.time() - start_time) * 1000
-        logger.error(f"❌ {request.method} {request.url.path} | ERROR | {process_time:.2f}ms | {str(e)}")
+        latency_ms = round((time.time() - start_time) * 1000, 2)
+        log_event(
+            "error",
+            "Request failed",
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
+            error=str(e),
+            latency_ms=latency_ms
+        )
         raise
 
 RATELIMIT_TABLE = dynamodb.Table("SecureDropRateLimit")
@@ -113,8 +152,21 @@ async def upload_file(
     destroy_on_download: str = Form("false")
 ) -> dict:
     try:
-        client_ip = request.client.host 
+        # Get real IP (handle proxies like Vercel/CloudFront)
+        client_ip = request.headers.get("X-Forwarded-For", request.client.host).split(",")[0].strip()
         await check_rate_limit(client_ip)
+
+        # Validate expiration bounds (1 hour to 30 days max)
+        if expires_in_hours < 1 or expires_in_hours > 720:
+            raise HTTPException(status_code=400, detail="Expiration must be between 1 hour and 30 days")
+
+        # Validate nonce format (must be 12 bytes base64-encoded)
+        try:
+            decoded_nonce = base64.b64decode(nonce)
+            if len(decoded_nonce) != 12:
+                raise HTTPException(status_code=400, detail="Invalid nonce length")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid nonce format")
 
         file_id = str(uuid.uuid4())
         file_content = await file.read()
@@ -125,7 +177,7 @@ async def upload_file(
         expires_at = int(time.time()) + (expires_in_hours * 3600)
         destroy_flag = destroy_on_download == "true"
         
-        logger.info(f"📤 UPLOAD | id={file_id} | size={file_size} bytes | expires_in={expires_in_hours}h | destroy={destroy_flag}")
+        log_event("info", "Upload started", file_id=file_id, size_bytes=file_size, expires_in_hours=expires_in_hours, destroy_on_download=destroy_flag)
         
         table.put_item(Item={
             'file_id': file_id,
@@ -144,7 +196,7 @@ async def upload_file(
             ContentType='application/octet-stream'
         )
         
-        logger.info(f"✅ UPLOAD SUCCESS | id={file_id}")
+        log_event("info", "Upload completed", file_id=file_id)
         
         return {
             "file_id": file_id,
@@ -158,8 +210,12 @@ async def upload_file(
         raise HTTPException(status_code=500, detail="Upload failed")
         
 @app.get("/download/{file_id}")
-async def download_file(file_id: str, background_tasks: BackgroundTasks):
+async def download_file(file_id: str, request: Request, background_tasks: BackgroundTasks):
     try:
+        # Rate limiting on download (20 req/hour - more permissive than upload)
+        client_ip = request.headers.get("X-Forwarded-For", request.client.host).split(",")[0].strip()
+        await check_rate_limit(client_ip)
+
         # Validate UUID format to prevent injection
         uuid_regex = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
         if not uuid_regex.match(file_id):

@@ -119,6 +119,8 @@ resource "aws_lambda_function" "api_lambda" {
   handler       = "main.handler" # 'main' pour le fichier main.py, 'handler' pour l'objet Mangum
   runtime       = "python3.11"
   role          = aws_iam_role.lambda_role.arn
+  memory_size   = 256
+  timeout       = 30
 
   # Optionnel : Forcer Terraform à redéployer si le zip change
   source_code_hash = filebase64sha256("${path.module}/../lambda.zip")
@@ -128,6 +130,7 @@ resource "aws_lambda_function" "api_lambda" {
       BUCKET_NAME = aws_s3_bucket.secure_storage.id
       REGION      = "eu-west-3" 
       TABLE_NAME  = aws_dynamodb_table.file_metadata.name
+      ENV         = "production"
     }
   }
 }
@@ -178,6 +181,73 @@ resource "aws_dynamodb_table" "rate_limit_table" {
     attribute_name = "expires_at"
     enabled        = true
   }
+}
+
+# ============================================
+# CLOUDWATCH MONITORING & ALARMS
+# ============================================
+
+# Alarm: Lambda Errors (more than 5 errors in 5 minutes)
+resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
+  alarm_name          = "securedrop-api-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 5
+  alarm_description   = "Triggered when API Lambda has more than 5 errors in 5 minutes"
+  
+  dimensions = {
+    FunctionName = aws_lambda_function.api_lambda.function_name
+  }
+  
+  treat_missing_data = "notBreaching"
+}
+
+# Alarm: Lambda Throttles (rate limiting by AWS)
+resource "aws_cloudwatch_metric_alarm" "lambda_throttles" {
+  alarm_name          = "securedrop-api-throttles"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Throttles"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  alarm_description   = "Triggered when API Lambda is throttled by AWS"
+  
+  dimensions = {
+    FunctionName = aws_lambda_function.api_lambda.function_name
+  }
+  
+  treat_missing_data = "notBreaching"
+}
+
+# Alarm: High Latency (average > 5 seconds)
+resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
+  alarm_name          = "securedrop-api-high-latency"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "Duration"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 5000  # 5 seconds in ms
+  alarm_description   = "Triggered when API Lambda average latency exceeds 5 seconds"
+  
+  dimensions = {
+    FunctionName = aws_lambda_function.api_lambda.function_name
+  }
+  
+  treat_missing_data = "notBreaching"
+}
+
+# CloudWatch Log Group with retention
+resource "aws_cloudwatch_log_group" "api_logs" {
+  name              = "/aws/lambda/${aws_lambda_function.api_lambda.function_name}"
+  retention_in_days = 14
 }
 
 output "api_endpoint" {

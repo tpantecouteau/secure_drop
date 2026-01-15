@@ -25,7 +25,10 @@ resource "aws_s3_bucket_cors_configuration" "s3_cors" {
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["GET"]
-    allowed_origins = ["https://securedropui.vercel.app/"] # Ou l'URL de ton site Vercel pour plus de sécurité
+    allowed_origins = [
+      "https://securedropui.vercel.app",
+      "http://localhost:5173"
+    ]
     max_age_seconds = 3000
   }
 }
@@ -133,15 +136,7 @@ resource "aws_lambda_function" "api_lambda" {
 resource "aws_lambda_function_url" "api_url" {
   function_name      = aws_lambda_function.api_lambda.function_name
   authorization_type = "NONE"
-
-  cors {
-    allow_credentials = false
-    allow_origins     = ["https://securedropui.vercel.app"]
-    allow_methods     = ["GET", "POST", "DELETE", "OPTIONS"]
-    allow_headers     = ["Content-Type", "Authorization"]
-    expose_headers    = ["x-nonce", "x-filename"]
-    max_age           = 3600
-  }
+  # CORS handled by FastAPI middleware for better error handling
 }
 
 # 2. La Lambda de nettoyage

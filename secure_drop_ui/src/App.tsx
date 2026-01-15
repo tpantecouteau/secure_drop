@@ -17,6 +17,7 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadPhase, setUploadPhase] = useState<'idle' | 'encrypting' | 'uploading'>('idle')
   const [toasts, setToasts] = useState<Toast[]>([])
   const [expiresIn, setExpiresIn] = useState<number>(24) // hours
   const [destroyOnDownload, setDestroyOnDownload] = useState(false)
@@ -95,17 +96,23 @@ function App() {
     setIsUploading(true)
 
     try {
+      // Validate size BEFORE encryption
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        showToast('error', 'File too large', 'Maximum size is 5 MB')
+        return
+      }
+
+      setUploadPhase('encrypting')
       const { encryptedFile, nonce, key } = await encrpyptFile(selectedFile)
+
+      setUploadPhase('uploading')
       const formData = new FormData()
       formData.append('file', encryptedFile, selectedFile.name)
       formData.append('nonce', nonce)
       formData.append('filename', selectedFile.name)
       formData.append('expires_in_hours', expiresIn.toString())
       formData.append('destroy_on_download', destroyOnDownload.toString())
-      if (selectedFile.size > MAX_FILE_SIZE) {
-        showToast('error', 'The file is too large', 'The file is too large (max 5Mo)');
-        return;
-      }
+
       const response = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         body: formData,
@@ -122,6 +129,8 @@ function App() {
 
         )
         setSelectedFile(null)
+        setExpiresIn(24) // Reset to default
+        setDestroyOnDownload(false) // Reset to default
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
@@ -141,6 +150,7 @@ function App() {
       )
     } finally {
       setIsUploading(false)
+      setUploadPhase('idle')
     }
   }
 
@@ -331,7 +341,7 @@ function App() {
           {isUploading ? (
             <>
               <div className="spinner"></div>
-              Encrypting...
+              {uploadPhase === 'encrypting' ? 'Encrypting...' : 'Uploading...'}
             </>
           ) : (
             <>

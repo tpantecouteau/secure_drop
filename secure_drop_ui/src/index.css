@@ -741,9 +741,17 @@ body::before {
 }
 
 .download-info h3 {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.file-ready-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
   margin-bottom: 1.25rem;
 }
 

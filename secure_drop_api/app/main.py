@@ -1,6 +1,7 @@
 from mangum import Mangum
 import boto3
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import io
 import uuid
@@ -31,6 +32,18 @@ logger.setLevel(logging.INFO)
 logger.propagate = True
 
 app = FastAPI(title="SecureDrop API")
+
+# --- CORS MIDDLEWARE (handles all responses including errors) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://securedropui.vercel.app",
+        "http://localhost:5173"
+    ],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- CONFIGURATION AWS ---
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
@@ -138,6 +151,8 @@ async def upload_file(
             "nonce": nonce
         }
 
+    except HTTPException:
+        raise  # Re-raise 413, 429 etc. as-is
     except Exception as e:
         logger.error(f"❌ UPLOAD FAILED | error={str(e)}")
         raise HTTPException(status_code=500, detail="Upload failed")
@@ -177,6 +192,8 @@ async def download_file(file_id: str, background_tasks: BackgroundTasks):
             "destroy_on_download": destroy_after
         }
 
+    except HTTPException:
+        raise  # Re-raise 400, 404 etc. as-is
     except Exception as e:
         logger.error(f"❌ DOWNLOAD FAILED | id={file_id} | error={str(e)}")
         raise HTTPException(status_code=500, detail="Could not generate download link")
@@ -209,6 +226,8 @@ async def delete_file(file_id: str):
         
         return {"status": "kept", "reason": "destroy_on_download was false"}
 
+    except HTTPException:
+        raise  # Re-raise 400 etc. as-is
     except Exception as e:
         logger.error(f"❌ DELETION FAILED | id={file_id} | error={str(e)}")
         raise HTTPException(status_code=500, detail="Could not delete file")

@@ -27,10 +27,13 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
+  min-height: 100dvh;
+  /* Dynamic viewport height for mobile */
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   position: relative;
 }
 
@@ -52,11 +55,14 @@ body::before {
 
 #root {
   width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   z-index: 1;
+  padding: 1rem 0;
 }
 
 /* App Container */
@@ -67,6 +73,7 @@ body::before {
   padding: 2rem;
   width: 100%;
   max-width: 600px;
+  margin: auto;
 }
 
 /* Logo / Brand */
@@ -602,26 +609,105 @@ body::before {
 
 /* Responsive */
 @media (max-width: 640px) {
+  body {
+    align-items: flex-start;
+  }
+
+  #root {
+    align-items: flex-start;
+  }
+
   .app-container {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .upload-card {
-    padding: 1.5rem;
+    padding: 1.25rem;
+    border-radius: 16px;
   }
 
   .dropzone {
-    padding: 2rem 1.5rem;
+    padding: 1.5rem 1rem;
+  }
+
+  .brand {
+    margin-bottom: 1.5rem;
+  }
+
+  .brand-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  .brand-icon svg {
+    width: 24px;
+    height: 24px;
   }
 
   .brand-title {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
+  }
+
+  .brand-subtitle {
+    font-size: 0.85rem;
   }
 
   .toast-container {
-    right: 1rem;
-    left: 1rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    top: 0.75rem;
     width: auto;
+    max-width: 100%;
+  }
+
+  .toast {
+    padding: 0.875rem 1rem;
+  }
+
+  .toast-key-value {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toast-key-value code {
+    font-size: 0.7rem;
+  }
+
+  .upload-btn {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  .file-preview {
+    padding: 0.75rem;
+  }
+
+  .file-name {
+    font-size: 0.85rem;
+  }
+
+  .expiration-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .expiration-option {
+    text-align: center;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .toggle-wrapper {
+    gap: 0.5rem;
+  }
+
+  .toggle-label {
+    font-size: 0.85rem;
+  }
+
+  .toggle-hint {
+    font-size: 0.7rem;
   }
 }
 

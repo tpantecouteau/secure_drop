@@ -19,6 +19,17 @@ resource "aws_s3_bucket_public_access_block" "security" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_cors_configuration" "s3_cors" {
+  bucket = aws_s3_bucket.secure_storage.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET"]
+    allowed_origins = ["*"] # Ou l'URL de ton site Vercel pour plus de sécurité
+    max_age_seconds = 3000
+  }
+}
+
 # 3. Création de la table DynamoDB (Métadonnées)
 resource "aws_dynamodb_table" "file_metadata" {
   name           = "SecureDropMetadata"

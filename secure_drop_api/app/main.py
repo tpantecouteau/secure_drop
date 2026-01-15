@@ -92,7 +92,7 @@ async def upload_file(
             "file_id": file_id,
             "nonce": nonce
         }
-        
+
     except Exception as e:
         logger.error(f"❌ UPLOAD FAILED | error={str(e)}")
         raise HTTPException(status_code=500, detail="Upload failed")
@@ -104,39 +104,59 @@ async def download_file(file_id: str, background_tasks: BackgroundTasks):
         
         response = table.get_item(Key={"file_id": file_id})
         if 'Item' not in response:
-            logger.warning(f"⚠️  FILE NOT FOUND | id={file_id}")
             raise HTTPException(status_code=404, detail="File not found")
             
         item = response['Item']
         nonce = item['nonce']
         filename = item.get('filename', 'file.enc')
         destroy_after = item.get('destroy_on_download', False)
-        
-        s3_obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=file_id)
-        file_content = s3_obj['Body'].read()
-        file_size = len(file_content)
-        
-        logger.info(f"📥 DOWNLOAD | id={file_id} | size={file_size} bytes | destroy_after={destroy_after}")
-        
-        if destroy_after:
-            background_tasks.add_task(s3_client.delete_object, Bucket=BUCKET_NAME, Key=file_id)
-            background_tasks.add_task(table.delete_item, Key={"file_id": file_id})
-            logger.info(f"🗑️  SCHEDULED DELETION | id={file_id}")
-        
-        return StreamingResponse(
-            io.BytesIO(file_content),
-            media_type="application/octet-stream",
-            headers={
-                "x-nonce": nonce,
-                "x-filename": filename,
-                "Access-Control-Expose-Headers": "x-nonce, x-filename"
-            }
+
+        # GÉNÉRATION DE L'URL PRÉSIGNÉE S3 (Valable 5 minutes)
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': BUCKET_NAME, 'Key': file_id},
+            ExpiresIn=300  # 300 secondes = 5 minutes
         )
-    except HTTPException:
-        raise
+
+        logger.info(f"🔗 PRESIGNED URL GENERATED | id={file_id}")
+        
+        return {
+            "download_url": presigned_url,
+            "nonce": nonce,
+            "filename": filename,
+            "destroy_on_download": destroy_after
+        }
+
     except Exception as e:
         logger.error(f"❌ DOWNLOAD FAILED | id={file_id} | error={str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Could not generate download link")
+
+@app.delete("/file/{file_id}")
+async def delete_file(file_id: str):
+    try:
+        logger.info(f"🗑️  MANUAL DELETION REQUEST | id={file_id}")
+        
+        # 1. Vérifier si l'option destroy_on_download était activée pour ce fichier
+        response = table.get_item(Key={"file_id": file_id})
+        if 'Item' not in response:
+            return {"message": "Already deleted or not found"}
+            
+        item = response['Item']
+        
+        # 2. On ne supprime que si l'utilisateur avait coché l'option
+        if item.get('destroy_on_download', False):
+            # Supprimer de S3
+            s3_client.delete_object(Bucket=BUCKET_NAME, Key=file_id)
+            # Supprimer de DynamoDB
+            table.delete_item(Key={"file_id": file_id})
+            logger.info(f"✅ DESTROY ON DOWNLOAD SUCCESS | id={file_id}")
+            return {"status": "deleted"}
+        
+        return {"status": "kept", "reason": "destroy_on_download was false"}
+
+    except Exception as e:
+        logger.error(f"❌ DELETION FAILED | id={file_id} | error={str(e)}")
+        raise HTTPException(status_code=500, detail="Could not delete file")
 
 @app.get("/health")
 async def health_check():

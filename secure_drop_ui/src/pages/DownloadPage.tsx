@@ -49,19 +49,28 @@ export default function DownloadPage() {
                 throw new Error(`Server error: ${response.status}`)
             }
 
-            const nonce = response.headers.get('x-nonce')
-            const filename = response.headers.get('x-filename') || 'fichier_dechiffre'
+            const data = await response.json()
+            const nonce = data.nonce
+            const filename = data.filename
+            const download_url = data.download_url
+            const destroy_after = data.destroy_on_download
 
             if (!nonce) {
                 throw new Error('Nonce missing in server response')
             }
 
-            const encryptedBlob = await response.blob()
+            const encryptedBlob = await fetch(download_url, { cache: 'no-store' }).then(res => res.blob())
 
             setState({ status: 'decrypting', filename })
 
             // 2. Decrypt and download
             await decryptAndSave(encryptedBlob, key, nonce, filename)
+
+            if (destroy_after) {
+                fetch(`${API_URL}/file/${fileId}`, { method: 'DELETE' })
+                    .then(res => console.log("Auto-destruction demandée"))
+                    .catch(err => console.error("Erreur destruction:", err));
+            }
 
             setState({ status: 'success', filename })
 

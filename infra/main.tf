@@ -25,7 +25,7 @@ resource "aws_s3_bucket_cors_configuration" "s3_cors" {
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["GET"]
-    allowed_origins = ["*"] # Ou l'URL de ton site Vercel pour plus de sécurité
+    allowed_origins = ["https://securedropui.vercel.app/"] # Ou l'URL de ton site Vercel pour plus de sécurité
     max_age_seconds = 3000
   }
 }
@@ -98,6 +98,12 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect   = "Allow"
         # Très important : on ajoute /stream/* à la fin de l'ARN de la table
         Resource = "${aws_dynamodb_table.file_metadata.arn}/stream/*"
+      },
+      {
+        # Permissions pour la table de rate limiting
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Effect   = "Allow"
+        Resource = aws_dynamodb_table.rate_limit_table.arn
       }
     ]
   })
@@ -129,10 +135,10 @@ resource "aws_lambda_function_url" "api_url" {
   authorization_type = "NONE"
 
   cors {
-    allow_credentials = false # Obligatoire quand on utilise "*"
-    allow_origins     = ["*"]
-    allow_methods     = ["*"]
-    allow_headers     = ["*"] # Plus simple pour le test
+    allow_credentials = false
+    allow_origins     = ["https://securedropui.vercel.app"]
+    allow_methods     = ["GET", "POST", "DELETE", "OPTIONS"]
+    allow_headers     = ["Content-Type", "Authorization"]
     expose_headers    = ["x-nonce", "x-filename"]
     max_age           = 3600
   }

@@ -6,6 +6,7 @@ import io
 import uuid
 import time
 import os
+import re
 import logging
 import sys
 
@@ -116,7 +117,7 @@ async def upload_file(
         table.put_item(Item={
             'file_id': file_id,
             'nonce': nonce,
-            'filename': filename,  
+            'filename': os.path.basename(filename),  # Sanitize filename  
             'content_type': file.content_type,
             'expires_at': expires_at,
             'destroy_on_download': destroy_flag
@@ -144,6 +145,11 @@ async def upload_file(
 @app.get("/download/{file_id}")
 async def download_file(file_id: str, background_tasks: BackgroundTasks):
     try:
+        # Validate UUID format to prevent injection
+        uuid_regex = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
+        if not uuid_regex.match(file_id):
+            raise HTTPException(status_code=400, detail="Invalid file ID format")
+        
         logger.info(f"📥 DOWNLOAD REQUEST | id={file_id}")
         
         response = table.get_item(Key={"file_id": file_id})
@@ -178,6 +184,11 @@ async def download_file(file_id: str, background_tasks: BackgroundTasks):
 @app.delete("/file/{file_id}")
 async def delete_file(file_id: str):
     try:
+        # Validate UUID format to prevent injection
+        uuid_regex = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
+        if not uuid_regex.match(file_id):
+            raise HTTPException(status_code=400, detail="Invalid file ID format")
+        
         logger.info(f"🗑️  MANUAL DELETION REQUEST | id={file_id}")
         
         # 1. Vérifier si l'option destroy_on_download était activée pour ce fichier

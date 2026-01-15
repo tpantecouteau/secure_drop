@@ -68,7 +68,7 @@ export default function DownloadPage() {
 
             if (destroy_after) {
                 fetch(`${API_URL}/file/${fileId}`, { method: 'DELETE' })
-                    .then(res => console.log("Auto-destruction demandée"))
+                    .then(() => console.log("Auto-destruction demandée"))
                     .catch(err => console.error("Erreur destruction:", err));
             }
 

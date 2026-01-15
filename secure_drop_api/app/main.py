@@ -117,7 +117,6 @@ async def download_file(file_id: str, background_tasks: BackgroundTasks):
         
         logger.info(f"📥 DOWNLOAD | id={file_id} | size={file_size} bytes | destroy_after={destroy_after}")
         
-        # If destroy_on_download is enabled, schedule deletion after response
         if destroy_after:
             background_tasks.add_task(s3_client.delete_object, Bucket=BUCKET_NAME, Key=file_id)
             background_tasks.add_task(table.delete_item, Key={"file_id": file_id})

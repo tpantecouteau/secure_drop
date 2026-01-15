@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { DragEvent, ChangeEvent } from 'react'
 import { encrpyptFile } from './lib/crypto'
 
@@ -12,6 +12,18 @@ interface Toast {
 
 const API_URL = import.meta.env.VITE_API_URL;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+
+// Declare Turnstile global type
+declare global {
+  interface Window {
+    turnstile: {
+      render: (container: string | HTMLElement, options: { sitekey: string; callback: (token: string) => void; 'error-callback': () => void }) => string;
+      reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
+    };
+  }
+}
 
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -21,7 +33,10 @@ function App() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [expiresIn, setExpiresIn] = useState<number>(24) // hours
   const [destroyOnDownload, setDestroyOnDownload] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const turnstileRef = useRef<HTMLDivElement>(null)
+  const turnstileWidgetId = useRef<string | null>(null)
 
   const expirationOptions = [
     { value: 1, label: '1 heure' },
@@ -29,6 +44,35 @@ function App() {
     { value: 168, label: '7 jours' },
     { value: 720, label: '30 jours' },
   ]
+
+  // Initialize Turnstile widget when file is selected
+  useEffect(() => {
+    if (!selectedFile || !TURNSTILE_SITE_KEY || !turnstileRef.current) return
+    if (turnstileWidgetId.current) return // Already rendered
+
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      if (window.turnstile && turnstileRef.current) {
+        turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token: string) => {
+            setTurnstileToken(token)
+          },
+          'error-callback': () => {
+            setTurnstileToken(null)
+          }
+        })
+      }
+    }, 100)
+
+    return () => {
+      clearTimeout(timer)
+      if (turnstileWidgetId.current && window.turnstile) {
+        window.turnstile.remove(turnstileWidgetId.current)
+        turnstileWidgetId.current = null
+      }
+    }
+  }, [selectedFile])
 
   const showToast = (type: Toast['type'], title: string, message: string, key?: string) => {
     const id = Date.now()
@@ -102,6 +146,12 @@ function App() {
         return
       }
 
+      // Verify Turnstile token
+      if (!turnstileToken && TURNSTILE_SITE_KEY) {
+        showToast('error', 'Verification required', 'Please complete the security check')
+        return
+      }
+
       setUploadPhase('encrypting')
       const { encryptedFile, nonce, key } = await encrpyptFile(selectedFile)
 
@@ -112,6 +162,9 @@ function App() {
       formData.append('filename', selectedFile.name)
       formData.append('expires_in_hours', expiresIn.toString())
       formData.append('destroy_on_download', destroyOnDownload.toString())
+      if (turnstileToken) {
+        formData.append('cf_turnstile_token', turnstileToken)
+      }
 
       const response = await fetch(`${API_URL}/upload`, {
         method: 'POST',
@@ -330,6 +383,11 @@ function App() {
               </div>
             </label>
           </div>
+        )}
+
+        {/* Cloudflare Turnstile Widget */}
+        {selectedFile && TURNSTILE_SITE_KEY && (
+          <div ref={turnstileRef} className="turnstile-container" style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}></div>
         )}
 
         {/* Upload Button */}

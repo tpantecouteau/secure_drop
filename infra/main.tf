@@ -3,6 +3,14 @@ provider "aws" {
   region = "eu-west-3"
 }
 
+# Variable for Cloudflare Turnstile (optional - leave empty to disable)
+variable "turnstile_secret" {
+  description = "Cloudflare Turnstile secret key for bot protection"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # 2. Création du Bucket S3 (Stockage des fichiers)
 resource "aws_s3_bucket" "secure_storage" {
   # Le nom du bucket doit être UNIQUE au monde
@@ -127,10 +135,11 @@ resource "aws_lambda_function" "api_lambda" {
 
   environment {
     variables = {
-      BUCKET_NAME = aws_s3_bucket.secure_storage.id
-      REGION      = "eu-west-3" 
-      TABLE_NAME  = aws_dynamodb_table.file_metadata.name
-      ENV         = "production"
+      BUCKET_NAME      = aws_s3_bucket.secure_storage.id
+      REGION           = "eu-west-3" 
+      TABLE_NAME       = aws_dynamodb_table.file_metadata.name
+      ENV              = "production"
+      TURNSTILE_SECRET = var.turnstile_secret
     }
   }
 }
@@ -244,11 +253,8 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
   treat_missing_data = "notBreaching"
 }
 
-# CloudWatch Log Group with retention
-resource "aws_cloudwatch_log_group" "api_logs" {
-  name              = "/aws/lambda/${aws_lambda_function.api_lambda.function_name}"
-  retention_in_days = 14
-}
+# Note: CloudWatch Log Group is created automatically by Lambda
+# To change retention, use AWS Console or import existing resource
 
 output "api_endpoint" {
   value = aws_lambda_function_url.api_url.function_url

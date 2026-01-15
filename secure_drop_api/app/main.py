@@ -12,6 +12,7 @@ import base64
 import json
 import logging
 import sys
+import httpx
 
 # --- STRUCTURED JSON LOGGING FOR CLOUDWATCH ---
 class JsonFormatter(logging.Formatter):
@@ -149,12 +150,29 @@ async def upload_file(
     nonce: str = Form(...),
     filename: str = Form(...),
     expires_in_hours: int = Form(24),
-    destroy_on_download: str = Form("false")
+    destroy_on_download: str = Form("false"),
+    cf_turnstile_token: str = Form(None)
 ) -> dict:
     try:
         # Get real IP (handle proxies like Vercel/CloudFront)
         client_ip = request.headers.get("X-Forwarded-For", request.client.host).split(",")[0].strip()
         await check_rate_limit(client_ip)
+
+        # Verify Cloudflare Turnstile token if configured
+        TURNSTILE_SECRET = os.environ.get("TURNSTILE_SECRET")
+        if TURNSTILE_SECRET:
+            if not cf_turnstile_token:
+                raise HTTPException(status_code=403, detail="Turnstile verification required")
+            
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                    data={"secret": TURNSTILE_SECRET, "response": cf_turnstile_token}
+                )
+                result = resp.json()
+                if not result.get("success"):
+                    log_event("warning", "Turnstile verification failed", ip=client_ip)
+                    raise HTTPException(status_code=403, detail="Bot verification failed")
 
         # Validate expiration bounds (1 hour to 30 days max)
         if expires_in_hours < 1 or expires_in_hours > 720:

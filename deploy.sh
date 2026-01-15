@@ -10,7 +10,7 @@ pip install \
     --implementation cp \
     --python-version 3.11 \
     --only-binary=:all: \
-    fastapi mangum cryptography boto3 python-multipart
+    fastapi mangum cryptography boto3 python-multipart httpx
 
 # 3. Copier ton code
 cp secure_drop_api/app/main.py build/

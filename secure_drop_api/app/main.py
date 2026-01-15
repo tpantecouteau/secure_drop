@@ -20,7 +20,7 @@ app = FastAPI(title="SecureDrop API")
 
 # --- CONFIGURATION AWS ---
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
-REGION = os.environ.get("REGION")
+REGION = os.environ.get("REGION", "eu-west-3")
 TABLE_NAME = os.environ.get("TABLE_NAME", "SecureDropMetadata")
 
 s3_client = boto3.client('s3', region_name=REGION)

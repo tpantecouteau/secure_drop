@@ -113,6 +113,14 @@ resource "aws_lambda_function" "api_lambda" {
 
   # Optionnel : Forcer Terraform à redéployer si le zip change
   source_code_hash = filebase64sha256("${path.module}/../lambda.zip")
+
+  environment {
+    variables = {
+      BUCKET_NAME = aws_s3_bucket.secure_storage.id
+      REGION      = "eu-west-3" 
+      TABLE_NAME  = aws_dynamodb_table.file_metadata.name
+    }
+  }
 }
 
 # 4. L'URL publique pour ton API

@@ -92,6 +92,7 @@ async def upload_file(
             "file_id": file_id,
             "nonce": nonce
         }
+        
     except Exception as e:
         logger.error(f"❌ UPLOAD FAILED | error={str(e)}")
         raise HTTPException(status_code=500, detail="Upload failed")

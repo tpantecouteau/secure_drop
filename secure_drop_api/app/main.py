@@ -7,14 +7,27 @@ import uuid
 import time
 import os
 import logging
+import sys
 
 # --- LOGGING CONFIGURATION ---
+root_logger = logging.getLogger()
+if root_logger.handlers:
+    for handler in root_logger.handlers:
+        root_logger.removeHandler(handler)
+
+# On définit un handler qui écrit sur la sortie standard
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s'))
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s | %(levelname)s | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    handlers=[handler]
 )
+
 logger = logging.getLogger("securedrop")
+logger.setLevel(logging.INFO)
+# On s'assure que les logs remontent au root logger
+logger.propagate = True
 
 app = FastAPI(title="SecureDrop API")
 

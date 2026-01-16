@@ -145,7 +145,7 @@ function App() {
       }
 
       // Verify Turnstile token
-      if (!turnstileToken && TURNSTILE_SITE_KEY) {
+      if ((!turnstileToken || turnstileToken === '') && TURNSTILE_SITE_KEY) {
         showToast('error', 'Verification required', 'Please complete the security check')
         return
       }

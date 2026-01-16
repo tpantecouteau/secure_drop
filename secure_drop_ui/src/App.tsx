@@ -7,7 +7,7 @@ interface Toast {
   type: 'success' | 'error' | 'info'
   title: string
   message: string
-  key?: string
+  shareUrl?: string
 }
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -34,9 +34,22 @@ function App() {
   const [expiresIn, setExpiresIn] = useState<number>(24) // hours
   const [destroyOnDownload, setDestroyOnDownload] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<number>(0)
+  const [filePreview, setFilePreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const turnstileRef = useRef<HTMLDivElement>(null)
   const turnstileWidgetId = useRef<string | null>(null)
+
+  // Generate file preview for images
+  useEffect(() => {
+    if (selectedFile && selectedFile.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (e) => setFilePreview(e.target?.result as string)
+      reader.readAsDataURL(selectedFile)
+    } else {
+      setFilePreview(null)
+    }
+  }, [selectedFile])
 
   const expirationOptions = [
     { value: 1, label: '1 heure' },
@@ -72,14 +85,14 @@ function App() {
     }
   }, [selectedFile])
 
-  const showToast = (type: Toast['type'], title: string, message: string, key?: string) => {
+  const showToast = (type: Toast['type'], title: string, message: string, shareUrl?: string) => {
     const id = Date.now()
-    setToasts(prev => [...prev, { id, type, title, message, key }])
+    setToasts(prev => [...prev, { id, type, title, message, shareUrl }])
 
-    // Auto-remove after 8 seconds (longer for success with key)
+    // Auto-remove after 15 seconds for share links, 5 seconds otherwise
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
-    }, key ? 15000 : 5000)
+    }, shareUrl ? 15000 : 5000)
   }
 
   const removeToast = (id: number) => {
@@ -89,7 +102,7 @@ function App() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      showToast('info', 'Copied!', 'The key has been copied to the clipboard')
+      showToast('info', 'Copied!', 'Link copied to clipboard')
     } catch {
       console.error('Failed to copy')
     }
@@ -202,6 +215,7 @@ function App() {
     } finally {
       setIsUploading(false)
       setUploadPhase('idle')
+      setUploadProgress(0)
     }
   }
 
@@ -244,20 +258,20 @@ function App() {
             <div className="toast-content">
               <div className="toast-title">{toast.title}</div>
               <div className="toast-message">{toast.message}</div>
-              {toast.key && (
+              {toast.shareUrl && (
                 <div className="toast-key">
                   <div className="toast-key-label">Secure sharing link:</div>
                   <div className="toast-key-value">
-                    <code>{toast.key.substring(0, 35)}...</code>
+                    <code>{toast.shareUrl.substring(0, 40)}...</code>
                     <button
                       className="toast-copy-btn"
-                      onClick={() => copyToClipboard(toast.key!)}
+                      onClick={() => copyToClipboard(toast.shareUrl!)}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                       </svg>
-                      Copy
+                      Copy Link
                     </button>
                   </div>
                 </div>
@@ -317,12 +331,18 @@ function App() {
         {/* File Preview */}
         {selectedFile && (
           <div className="file-preview">
-            <div className="file-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14,2 14,8 20,8" />
-              </svg>
-            </div>
+            {filePreview ? (
+              <div className="file-thumbnail">
+                <img src={filePreview} alt="Preview" />
+              </div>
+            ) : (
+              <div className="file-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                </svg>
+              </div>
+            )}
             <div className="file-info">
               <div className="file-name">{selectedFile.name}</div>
               <div className="file-size">{formatFileSize(selectedFile.size)}</div>
@@ -410,6 +430,21 @@ function App() {
             </>
           )}
         </button>
+
+        {/* Progress Bar */}
+        {isUploading && (
+          <div className="progress-container">
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: uploadPhase === 'encrypting' ? '30%' : `${Math.min(uploadProgress || 60, 95)}%` }}
+              ></div>
+            </div>
+            <div className="progress-text">
+              {uploadPhase === 'encrypting' ? 'Encrypting your file...' : 'Uploading securely...'}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}

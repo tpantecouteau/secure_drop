@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { DragEvent, ChangeEvent } from 'react'
 import { encrpyptFile } from './lib/crypto'
+import { QRCodeSVG } from 'qrcode.react'
 
 interface Toast {
   id: number
@@ -259,20 +260,31 @@ function App() {
               <div className="toast-title">{toast.title}</div>
               <div className="toast-message">{toast.message}</div>
               {toast.shareUrl && (
-                <div className="toast-key">
-                  <div className="toast-key-label">Secure sharing link:</div>
-                  <div className="toast-key-value">
-                    <code>{toast.shareUrl.substring(0, 40)}...</code>
-                    <button
-                      className="toast-copy-btn"
-                      onClick={() => copyToClipboard(toast.shareUrl!)}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                      Copy Link
-                    </button>
+                <div className="toast-share">
+                  <div className="toast-qr">
+                    <QRCodeSVG
+                      value={toast.shareUrl}
+                      size={80}
+                      bgColor="transparent"
+                      fgColor="#ffffff"
+                      level="L"
+                    />
+                  </div>
+                  <div className="toast-link-section">
+                    <div className="toast-key-label">Secure sharing link:</div>
+                    <div className="toast-key-value">
+                      <code>{toast.shareUrl.substring(0, 35)}...</code>
+                      <button
+                        className="toast-copy-btn"
+                        onClick={() => copyToClipboard(toast.shareUrl!)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                        Copy
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

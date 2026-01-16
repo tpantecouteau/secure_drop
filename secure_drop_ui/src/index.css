@@ -1088,8 +1088,15 @@ body::before {
 }
 
 @keyframes progressPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .progress-text {
@@ -1120,9 +1127,19 @@ body::before {
    SUCCESS ANIMATION
    ============================================ */
 @keyframes successPop {
-  0% { transform: scale(0.8); opacity: 0; }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .toast-success {
@@ -1144,4 +1161,44 @@ body::before {
 
 .toast-copy-btn:active {
   transform: scale(0.95);
+}
+
+/* ============================================
+   QR CODE IN TOAST
+   ============================================ */
+.toast-share {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toast-qr {
+  flex-shrink: 0;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-qr svg {
+  display: block;
+}
+
+.toast-link-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-link-section .toast-key-value {
+  margin-top: 0.5rem;
+}
+
+.toast-link-section code {
+  font-size: 0.75rem;
+  word-break: break-all;
 }

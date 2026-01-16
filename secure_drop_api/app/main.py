@@ -13,6 +13,13 @@ import json
 import logging
 import sys
 import httpx
+from pathlib import Path
+
+# Load .env file for local development
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    from dotenv import load_dotenv
+    load_dotenv(env_path)
 
 # --- STRUCTURED JSON LOGGING FOR CLOUDWATCH ---
 class JsonFormatter(logging.Formatter):

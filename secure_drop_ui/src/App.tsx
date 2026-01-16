@@ -149,7 +149,7 @@ function App() {
         showToast('error', 'Verification required', 'Please complete the security check')
         return
       }
-      console.log('turnstileToken', turnstileToken)
+
       setUploadPhase('encrypting')
       const { encryptedFile, nonce, key } = await encrpyptFile(selectedFile)
 

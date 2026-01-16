@@ -203,7 +203,7 @@ export default function DownloadPage() {
                             {state.status === 'downloading' || state.status === 'decrypting' ? (
                                 <>
                                     <div className="spinner"></div>
-                                    {state.status === 'downloading' ? 'Fetching from S3...' : 'Decrypting...'}
+                                    {state.status === 'downloading' ? 'Fetching...' : 'Decrypting...'}
                                 </>
                             ) : (
                                 "Download and Decrypt"

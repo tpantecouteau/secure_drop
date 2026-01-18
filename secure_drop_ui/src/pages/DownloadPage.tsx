@@ -117,7 +117,7 @@ export default function DownloadPage() {
     // --- RENDER LOGIC ---
 
     return (
-        <div className="app-container">
+        <div className="app-container-download">
             <div className="brand">
                 <div className="brand-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -214,11 +214,20 @@ export default function DownloadPage() {
             </div>
 
             <div className="footer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                Client-side decryption • Zero-Knowledge
+                <div className="footer-main">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Client-side decryption • Zero-Knowledge
+                </div>
+                <div className="footer-links">
+                    <a href="https://github.com/tpantecouteau/secure_drop" target="_blank" rel="noopener noreferrer">
+                        GitHub
+                    </a>
+                    <span className="footer-divider">•</span>
+                    <span>Made with ❤️ for privacy</span>
+                </div>
             </div>
         </div>
     )

@@ -14,6 +14,8 @@ A secure, end-to-end encrypted file sharing application. Files are encrypted cli
 - **🤖 Bot Protection** — Cloudflare Turnstile integration
 - **📱 QR Code Sharing** — Scan to share on mobile
 - **🖼️ Image Preview** — Thumbnail preview for image files
+- **📊 Upload Progress** — Visual feedback during encryption/upload
+- **ℹ️ About Page** — How it works, security details
 
 ## 🏗️ Architecture
 
